@@ -1,0 +1,17 @@
+-- ==============================================================================
+-- AI-Powered Government Scheme Recommendation System
+-- Database Schema Definition (Supabase PostgreSQL)
+-- ==============================================================================
+--
+-- STATUS: PLACEHOLDER (PHASE 0)
+-- 
+-- The complete Supabase PostgreSQL database schema, including:
+-- - Tables: users, user_profiles, states, districts, scheme_categories,
+--   schemes, scheme_eligibility, scheme_documents, scheme_sources,
+--   saved_schemes, notifications, chat_history
+-- - Foreign key constraints and indexes
+-- - Row Level Security (RLS) policies
+-- 
+-- will be fully implemented and applied in Phase 1 (Database & Auth Setup).
+--
+-- ==============================================================================
