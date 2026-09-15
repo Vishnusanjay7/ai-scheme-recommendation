@@ -1,0 +1,66 @@
+[
+  {
+    "external_id": "MYSCHEME-PMKISAN-001",
+    "scheme_name": "Pradhan Mantri Kisan Samman Nidhi (PM-KISAN)",
+    "description": "Income support of Rs. 6000 per year in three equal installments to all landholding farmer families across India.",
+    "government_level": "CENTRAL",
+    "category": "Agriculture, Rural & Environment",
+    "benefits": "Financial benefit of Rs. 6000/- per year per family payable in three equal four-monthly installments of Rs. 2000/- each.",
+    "official_url": "https://pmkisan.gov.in",
+    "source_url": "https://www.myscheme.gov.in/schemes/pm-kisan",
+    "status": "ACTIVE",
+    "required_documents": [
+      "Aadhaar Card",
+      "Landholding Ownership Papers",
+      "Bank Account Passbook"
+    ],
+    "eligibility": {
+      "min_age": 18,
+      "max_age": 120,
+      "category": "Small and Marginal Farmers"
+    }
+  },
+  {
+    "external_id": "MYSCHEME-PMJAY-002",
+    "scheme_name": "Ayushman Bharat - Pradhan Mantri Jan Arogya Yojana (PM-JAY)",
+    "description": "Health coverage of up to Rs. 5 lakh per family per year for secondary and tertiary care hospitalization to poor and vulnerable families.",
+    "government_level": "CENTRAL",
+    "category": "Health & Wellness",
+    "benefits": "Cashless access to health care services for the beneficiary at the point of service (hospital).",
+    "official_url": "https://pmjay.gov.in",
+    "source_url": "https://www.myscheme.gov.in/schemes/pmjay",
+    "status": "ACTIVE",
+    "required_documents": [
+      "Aadhaar Card or Ration Card",
+      "Ayushman Bharat Beneficiary Card"
+    ],
+    "eligibility": {
+      "min_age": 0,
+      "max_age": 120,
+      "max_income": 300000.00
+    }
+  },
+  {
+    "external_id": "TNEGA-KMUT-003",
+    "scheme_name": "Kalaignar Magalir Urimai Thittam",
+    "description": "Rights grant of Rs. 1,000 per month for women heads of eligible households in Tamil Nadu.",
+    "government_level": "STATE",
+    "state": "Tamil Nadu",
+    "category": "Social Welfare & Empowerment",
+    "benefits": "Monthly financial assistance of Rs. 1,000 deposited directly into the bank account of eligible women family heads.",
+    "official_url": "https://kmut.tn.gov.in",
+    "source_url": "https://www.myscheme.gov.in/schemes/kmut",
+    "status": "ACTIVE",
+    "required_documents": [
+      "Aadhaar Card",
+      "Smart Ration Card",
+      "Electricity Consumer Number",
+      "Bank Passbook"
+    ],
+    "eligibility": {
+      "min_age": 21,
+      "gender": "FEMALE",
+      "max_income": 250000.00
+    }
+  }
+]

@@ -22,6 +22,15 @@ class TestHealthEndpoint(unittest.TestCase):
         data = response.json()
         self.assertEqual(data["status"], "ok")
         self.assertEqual(data["message"], "AI Government Scheme Recommendation API is running")
+        self.assertIn("database_configured", data)
+
+    def test_health_database_check(self):
+        """Verify that GET /health/db returns structured status."""
+        response = self.client.get("/health/db")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("status", data)
+        self.assertIn("configured", data)
 
 
 if __name__ == "__main__":

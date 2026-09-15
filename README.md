@@ -53,7 +53,9 @@ ai-gov-scheme-recommender/
 ├── docs/                           # Architecture, database design & API documentation
 │   ├── architecture.md
 │   ├── database_design.md
-│   └── api_documentation.md
+│   ├── api_documentation.md
+│   ├── data_pipeline.md
+│   └── eligibility_engine.md
 │
 ├── .gitignore                      # Git ignore rules for node_modules, .venv, .env
 ├── .env.example                    # Global environment variables template
