@@ -306,6 +306,29 @@ class TestEligibilityEngine(unittest.TestCase):
         self.assertEqual(evals[0].result, CriterionResult.UNKNOWN)
         self.assertIn("unsupported or unmodeled structure", evals[0].reason)
 
+    def test_other_conditions_metadata_ignored_and_empty_raw(self):
+        """Pipeline internal metadata (flags, special_branches, etc.) and empty raw_conditions are skipped."""
+        conditions = {
+            "flags": ["Residency duration requirement (>= 10 years)"],
+            "special_branches": ["Agriculture"],
+            "district_income_conditions": {},
+            "raw_conditions": [],
+        }
+        evals = self.engine.evaluate_other_conditions({}, conditions)
+        self.assertEqual(len(evals), 0)
+
+    def test_other_conditions_raw_conditions_yields_unknown(self):
+        """Non-empty raw_conditions yield clean UNKNOWN requiring departmental verification."""
+        conditions = {
+            "raw_conditions": ["Continuous residence of not less than 10 years in Tamil Nadu required"],
+            "flags": ["Residency requirement"],
+        }
+        evals = self.engine.evaluate_other_conditions({}, conditions)
+        self.assertEqual(len(evals), 1)
+        self.assertEqual(evals[0].result, CriterionResult.UNKNOWN)
+        self.assertEqual(evals[0].criterion, "other_conditions.additional_requirements")
+        self.assertIn("additional requirements", evals[0].reason)
+
     # ==========================================
     # 11. COMBINED THREE-STATE DECISION RULES
     # ==========================================

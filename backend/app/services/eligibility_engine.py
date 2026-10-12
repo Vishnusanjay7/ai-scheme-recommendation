@@ -682,34 +682,6 @@ class DeterministicEligibilityEngine:
             reason=reason,
         )
 
-        req_str = f"District ID {district_restriction}"
-
-        if user_district_id is None:
-            return CriterionEvaluation(
-                criterion="district",
-                result=CriterionResult.UNKNOWN,
-                user_value=None,
-                required=req_str,
-                reason=f"Citizen district is unspecified; scheme is restricted to {req_str}.",
-            )
-
-        if user_district_id == district_restriction:
-            return CriterionEvaluation(
-                criterion="district",
-                result=CriterionResult.PASS,
-                user_value=f"District ID {user_district_id}",
-                required=req_str,
-                reason=f"Citizen district matches the required district ({req_str}).",
-            )
-
-        return CriterionEvaluation(
-            criterion="district",
-            result=CriterionResult.FAIL,
-            user_value=f"District ID {user_district_id}",
-            required=req_str,
-            reason=f"Citizen district (ID {user_district_id}) does not match the restricted {req_str}.",
-        )
-
     @classmethod
     def evaluate_other_conditions(
         cls,
@@ -722,7 +694,9 @@ class DeterministicEligibilityEngine:
           - marital_status
           - bpl_card (bool)
           - max_landholding_hectares (float)
-        Unsupported / unstructured conditions strictly produce UNKNOWN.
+        Unparsed raw conditions produce a clean UNKNOWN requiring departmental verification.
+        Internal pipeline metadata (flags, special_branches, district_income_conditions) is safely ignored.
+        Unsupported / unmodeled structured conditions produce UNKNOWN.
         """
         evaluations: List[CriterionEvaluation] = []
         if not other_conditions or not isinstance(other_conditions, dict):
@@ -731,7 +705,52 @@ class DeterministicEligibilityEngine:
         f_details = family_details or {}
 
         for cond_key, cond_val in other_conditions.items():
+            # Skip empty / null condition values
+            if cond_val is None or cond_val == "" or cond_val == [] or cond_val == {}:
+                continue
+
             k_norm = cond_key.strip().lower()
+
+            # Skip internal metadata keys produced by pipeline/normalizer
+            if k_norm in ("flags", "verification_flags", "special_branches", "district_income_conditions"):
+                continue
+
+            # Unparsed natural language conditions from importer
+            if k_norm == "raw_conditions":
+                if isinstance(cond_val, list):
+                    unparsed_items = [
+                        str(c).strip()
+                        for c in cond_val
+                        if c
+                        and str(c).strip()
+                        and str(c).strip().lower() not in ("<br>", "<br/>", "<br />", "<p>", "</p>")
+                    ]
+                elif (
+                    isinstance(cond_val, str)
+                    and cond_val.strip()
+                    and cond_val.strip().lower() not in ("<br>", "<br/>", "<br />", "<p>", "</p>")
+                ):
+                    unparsed_items = [cond_val.strip()]
+                else:
+                    unparsed_items = []
+
+                if not unparsed_items:
+                    continue
+
+                req_summary = "; ".join(unparsed_items[:3])
+                if len(unparsed_items) > 3:
+                    req_summary += f" (+{len(unparsed_items) - 3} more)"
+
+                evaluations.append(
+                    CriterionEvaluation(
+                        criterion="other_conditions.additional_requirements",
+                        result=CriterionResult.UNKNOWN,
+                        user_value=None,
+                        required=req_summary,
+                        reason=f"Scheme specifies additional requirements requiring verification: {'; '.join(unparsed_items)}",
+                    )
+                )
+                continue
 
             # 1. Marital status condition
             if k_norm == "marital_status":

@@ -8,22 +8,40 @@
  *   - NO_DEADLINE: Open — No Deadline
  *   - EXPIRED: Expired
  */
+import { AlertCircle, Calendar, Clock } from 'lucide-react'
+
 export default function DeadlineBadge({ deadlineStatus, daysRemaining, activityStatus }) {
   if (activityStatus === 'EXPIRED' || deadlineStatus === 'EXPIRED') {
-    return <span className="badge badge-expired">Expired</span>
+    return (
+      <span className="badge badge-expired">
+        <Clock className="h-3 w-3 shrink-0 inline-block mr-1 opacity-70" aria-hidden="true" />
+        Expired
+      </span>
+    )
   }
 
   if (activityStatus === 'NOT_YET_OPEN') {
-    return <span className="badge badge-neutral">Registration Not Yet Open</span>
+    return (
+      <span className="badge badge-neutral">
+        <Calendar className="h-3 w-3 shrink-0 inline-block mr-1 opacity-70" aria-hidden="true" />
+        Registration Not Yet Open
+      </span>
+    )
   }
 
   if (activityStatus === 'INACTIVE') {
-    return <span className="badge badge-neutral">Scheme Inactive</span>
+    return (
+      <span className="badge badge-neutral">
+        <AlertCircle className="h-3 w-3 shrink-0 inline-block mr-1 opacity-70" aria-hidden="true" />
+        Scheme Inactive
+      </span>
+    )
   }
 
   if (deadlineStatus === 'CLOSING_TODAY' || daysRemaining === 0) {
     return (
       <span className="badge badge-urgent animate-pulse" title="Valid through 23:59:59 IST tonight">
+        <AlertCircle className="h-3 w-3 shrink-0 inline-block mr-1 text-current" aria-hidden="true" />
         Closing Today
       </span>
     )
@@ -32,6 +50,7 @@ export default function DeadlineBadge({ deadlineStatus, daysRemaining, activityS
   if (deadlineStatus === 'URGENT') {
     return (
       <span className="badge badge-urgent">
+        <Clock className="h-3 w-3 shrink-0 inline-block mr-1 text-current" aria-hidden="true" />
         Urgent — {daysRemaining ?? 'Few'} {daysRemaining === 1 ? 'day' : 'days'} remaining
       </span>
     )
@@ -40,6 +59,7 @@ export default function DeadlineBadge({ deadlineStatus, daysRemaining, activityS
   if (deadlineStatus === 'APPROACHING') {
     return (
       <span className="badge badge-approaching">
+        <Calendar className="h-3 w-3 shrink-0 inline-block mr-1 text-current" aria-hidden="true" />
         Approaching — {daysRemaining} days remaining
       </span>
     )
@@ -48,18 +68,41 @@ export default function DeadlineBadge({ deadlineStatus, daysRemaining, activityS
   if (deadlineStatus === 'MORE_THAN_15_DAYS') {
     return (
       <span className="badge badge-info">
+        <Calendar className="h-3 w-3 shrink-0 inline-block mr-1 text-current" aria-hidden="true" />
         {daysRemaining} days remaining
       </span>
     )
   }
 
   if (deadlineStatus === 'NO_DEADLINE') {
-    return <span className="badge badge-open">Open — No Deadline</span>
+    if (activityStatus === 'OPEN') {
+      return (
+        <span className="badge badge-open" title="Scheme registration is open with no fixed closing deadline">
+          <Calendar className="h-3 w-3 shrink-0 inline-block mr-1 text-current" aria-hidden="true" />
+          Open — No Deadline Specified
+        </span>
+      )
+    }
+    return (
+      <span className="badge badge-neutral" title="No closing deadline specified in official source">
+        <Calendar className="h-3 w-3 shrink-0 inline-block mr-1 opacity-70" aria-hidden="true" />
+        No Deadline Specified
+      </span>
+    )
+  }
+
+  if (activityStatus === 'OPEN') {
+    return (
+      <span className="badge badge-open">
+        <Calendar className="h-3 w-3 shrink-0 inline-block mr-1 text-current" aria-hidden="true" />
+        Open
+      </span>
+    )
   }
 
   return (
     <span className="badge badge-neutral">
-      {deadlineStatus ? deadlineStatus.replace(/_/g, ' ') : 'Active'}
+      {deadlineStatus ? deadlineStatus.replace(/_/g, ' ') : 'Status Unspecified'}
     </span>
   )
 }

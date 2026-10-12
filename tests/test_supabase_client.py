@@ -92,6 +92,59 @@ class TestSupabaseClientIntegration(unittest.TestCase):
             self.assertTrue(result["configured"])
             self.assertEqual(len(result["sample_data"]), 1)
 
+    def test_admin_client_missing_key_raises(self):
+        """Verify get_supabase_admin_client raises ValueError when service role key is missing."""
+        from app.integrations.supabase_client import get_supabase_admin_client, is_supabase_admin_configured
+
+        test_env = {
+            "SUPABASE_URL": "https://xyzexampleproject.supabase.co",
+            "SUPABASE_PUBLISHABLE_KEY": "sample-publishable-key",
+        }
+        with patch.dict(os.environ, test_env, clear=True):
+            self.assertFalse(is_supabase_admin_configured())
+            with self.assertRaises(ValueError) as ctx:
+                get_supabase_admin_client()
+            self.assertIn("Supabase admin credentials are missing", str(ctx.exception))
+
+    def test_public_client_never_uses_service_role_key(self):
+        """Verify public get_supabase_config never falls back to SUPABASE_SERVICE_ROLE_KEY."""
+        test_env = {
+            "SUPABASE_URL": "https://xyzexampleproject.supabase.co",
+            "SUPABASE_SERVICE_ROLE_KEY": "secret-service-role-key",
+        }
+        with patch.dict(os.environ, test_env, clear=True):
+            url, key = get_supabase_config()
+            self.assertEqual(url, "https://xyzexampleproject.supabase.co")
+            self.assertIsNone(key)
+            self.assertFalse(is_supabase_configured())
+
+    @patch("app.integrations.supabase_client.create_client")
+    def test_admin_client_singleton_and_options(self, mock_create_client):
+        """Verify admin client is created with persist_session=False and auto_refresh_token=False."""
+        from app.integrations.supabase_client import get_supabase_admin_client, is_supabase_admin_configured
+
+        mock_instance = MagicMock()
+        mock_create_client.return_value = mock_instance
+
+        test_env = {
+            "SUPABASE_URL": "https://xyzexampleproject.supabase.co",
+            "SUPABASE_SERVICE_ROLE_KEY": "secret-service-role-key",
+        }
+        with patch.dict(os.environ, test_env, clear=True):
+            self.assertTrue(is_supabase_admin_configured())
+            client1 = get_supabase_admin_client()
+            client2 = get_supabase_admin_client()
+            self.assertIs(client1, client2)
+
+            self.assertEqual(mock_create_client.call_count, 1)
+            args, kwargs = mock_create_client.call_args
+            self.assertEqual(args[0], "https://xyzexampleproject.supabase.co")
+            self.assertEqual(args[1], "secret-service-role-key")
+            options = kwargs.get("options")
+            self.assertIsNotNone(options)
+            self.assertFalse(options.auto_refresh_token)
+            self.assertFalse(options.persist_session)
+
 
 if __name__ == "__main__":
     unittest.main()

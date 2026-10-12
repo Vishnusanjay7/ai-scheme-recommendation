@@ -82,3 +82,14 @@ def get_authenticated_user_id(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication token contains invalid citizen user identity.",
         )
+
+
+def get_jwt_claims(token: str) -> dict:
+    """Safely decode JWT claims without signature verification to access claims like email."""
+    if not token:
+        return {}
+    try:
+        return jwt.decode(token, options={"verify_signature": False})
+    except Exception:
+        return {}
+

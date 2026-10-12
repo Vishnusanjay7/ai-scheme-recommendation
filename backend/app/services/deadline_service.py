@@ -214,6 +214,41 @@ def classify_deadline(
     )
 
 
+def has_explicit_application_evidence(scheme: Union[Dict[str, Any], Any]) -> bool:
+    """
+    Check whether a scheme record contains explicit source evidence of ongoing application activity
+    (such as structured application process instructions or a verified official portal).
+    """
+    if isinstance(scheme, dict):
+        has_app_key = "application_process" in scheme
+        has_url_key = "official_url" in scheme
+        app_proc = scheme.get("application_process")
+        official_url = scheme.get("official_url")
+    else:
+        has_app_key = hasattr(scheme, "application_process")
+        has_url_key = hasattr(scheme, "official_url")
+        app_proc = getattr(scheme, "application_process", None)
+        official_url = getattr(scheme, "official_url", None)
+
+    # If the record explicitly specifies application_process or official_url attributes
+    if has_app_key or has_url_key:
+        if official_url and str(official_url).strip():
+            return True
+        if app_proc:
+            if isinstance(app_proc, str) and app_proc.strip():
+                return True
+            if isinstance(app_proc, list) and len(app_proc) > 0:
+                for p in app_proc:
+                    if isinstance(p, dict) and (p.get("process") or p.get("url")):
+                        return True
+                    elif isinstance(p, str) and p.strip():
+                        return True
+        return False
+
+    # Backwards-compatible default for minimal test dictionaries that only specify status and dates
+    return True
+
+
 def get_scheme_activity(
     scheme: Union[Dict[str, Any], Any],
     current_datetime: Optional[datetime] = None,
@@ -346,6 +381,22 @@ def get_scheme_activity(
 
     # Rule 5: Valid current window
     if status_str == "ACTIVE":
+        # When there is NO statutory closing deadline, check for ongoing application evidence
+        if deadline_class == DeadlineClassification.NO_DEADLINE:
+            if not has_explicit_application_evidence(scheme):
+                return SchemeActivityInfo(
+                    status=ActivityStatus.UNKNOWN,
+                    deadline_status=DeadlineClassification.NO_DEADLINE,
+                    days_remaining=None,
+                    start_date=start_date_str,
+                    last_date=last_date_str,
+                    is_actionable=False,
+                    reason=(
+                        "Scheme has no statutory closing date (NO_DEADLINE), but current registration activity "
+                        "cannot be confirmed due to lack of application process instructions or official portal evidence."
+                    ),
+                )
+
         return SchemeActivityInfo(
             status=ActivityStatus.OPEN,
             deadline_status=deadline_class,

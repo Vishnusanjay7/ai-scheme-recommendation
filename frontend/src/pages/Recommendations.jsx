@@ -191,7 +191,7 @@ export default function Recommendations() {
           <button
             type="button"
             className="btn btn-sm btn-outline ml-auto"
-            onClick={() => loadRecommendations(query || null)}
+            onClick={() => executeSearch(query || null)}
           >
             Retry ↻
           </button>

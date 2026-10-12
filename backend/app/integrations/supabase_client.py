@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
-from supabase import create_client, Client
+from supabase import create_client, Client, ClientOptions
 
 # Automatically find and load .env from backend/ or project root
 _backend_dir = Path(__file__).resolve().parent.parent.parent
@@ -41,19 +41,29 @@ def normalize_supabase_url(url: Optional[str]) -> Optional[str]:
     return url.rstrip("/")
 
 
+def get_supabase_url() -> Optional[str]:
+    """Retrieve normalized Supabase API URL from environment."""
+    raw_url = os.getenv("SUPABASE_URL")
+    return normalize_supabase_url(raw_url) if raw_url else None
+
+
+def get_supabase_publishable_key() -> Optional[str]:
+    """Retrieve publishable/anon key from environment."""
+    return (
+        os.getenv("SUPABASE_PUBLISHABLE_KEY")
+        or os.getenv("SUPABASE_ANON_KEY")
+        or os.getenv("SUPABASE_KEY")
+    )
+
+
 def get_supabase_config() -> tuple[Optional[str], Optional[str]]:
     """
     Retrieve Supabase URL and Publishable Key from environment variables.
     Supports SUPABASE_URL, and SUPABASE_PUBLISHABLE_KEY (with SUPABASE_ANON_KEY / SUPABASE_KEY fallbacks).
+    Never falls back to SUPABASE_SERVICE_ROLE_KEY to prevent accidental permission escalation in public client.
     """
-    raw_url = os.getenv("SUPABASE_URL")
-    url = normalize_supabase_url(raw_url) if raw_url else None
-    key = (
-        os.getenv("SUPABASE_PUBLISHABLE_KEY")
-        or os.getenv("SUPABASE_ANON_KEY")
-        or os.getenv("SUPABASE_KEY")
-        or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-    )
+    url = get_supabase_url()
+    key = get_supabase_publishable_key()
     return url, key
 
 
@@ -62,19 +72,49 @@ def get_supabase_admin_key() -> Optional[str]:
     return os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 
+_supabase_admin_client: Optional[Client] = None
+
+
+def is_supabase_admin_configured() -> bool:
+    """Return True if both Supabase URL and service-role key are non-empty strings."""
+    url = get_supabase_url()
+    admin_key = get_supabase_admin_key()
+    return bool(url and admin_key and url.strip() and admin_key.strip())
+
+
 def get_supabase_admin_client() -> Client:
     """
-    Get or initialize a Supabase client with service-role permissions for backend tasks.
+    Get or initialize a dedicated backend-only Supabase client with service-role permissions.
+    This client is strictly isolated from user sessions and publishable keys.
+    Uses ClientOptions with auto_refresh_token=False and persist_session=False
+    so that user sessions or auth tokens can never overwrite service-role authorization.
     Raises ValueError if SUPABASE_SERVICE_ROLE_KEY is not configured.
     """
-    url, _ = get_supabase_config()
+    global _supabase_admin_client
+    if _supabase_admin_client is not None:
+        return _supabase_admin_client
+
+    url = get_supabase_url()
     admin_key = get_supabase_admin_key()
-    if not url or not admin_key:
+    if not url or not admin_key or not admin_key.strip():
         raise ValueError(
             "Supabase admin credentials are missing. Please configure SUPABASE_SERVICE_ROLE_KEY "
-            "in backend/.env or environment variables for backend data ingestion."
+            "in backend/.env for backend data ingestion."
         )
-    return create_client(url.strip(), admin_key.strip())
+
+    from supabase import ClientOptions
+    options = ClientOptions(
+        auto_refresh_token=False,
+        persist_session=False,
+    )
+    _supabase_admin_client = create_client(url.strip(), admin_key.strip(), options=options)
+    return _supabase_admin_client
+
+
+def reset_supabase_admin_client() -> None:
+    """Reset the admin singleton instance."""
+    global _supabase_admin_client
+    _supabase_admin_client = None
 
 
 def is_supabase_configured() -> bool:
@@ -105,10 +145,39 @@ def get_supabase_client() -> Client:
     return _supabase_client
 
 
+def get_authenticated_supabase_client(token: str) -> Client:
+    """
+    Create a lightweight Supabase client scoped to an authenticated citizen's JWT session.
+    PostgREST requests executed by this client include the citizen's bearer token in the
+    Authorization header, allowing PostgreSQL Row Level Security (RLS) to evaluate auth.uid()
+    correctly against the calling citizen's identity.
+    """
+    if not token or not token.strip():
+        raise ValueError("A valid citizen authentication token is required.")
+
+    url, key = get_supabase_config()
+    if not url or not key:
+        raise ValueError(
+            "Supabase credentials are missing. Please configure SUPABASE_URL and "
+            "SUPABASE_PUBLISHABLE_KEY."
+        )
+
+    options = ClientOptions(
+        headers={"Authorization": f"Bearer {token.strip()}"},
+        auto_refresh_token=False,
+        persist_session=False,
+    )
+    client = create_client(url.strip(), key.strip(), options=options)
+    client.postgrest.auth(token.strip())
+    return client
+
+
+
 def reset_supabase_client() -> None:
-    """Reset the singleton instance (useful for testing and configuration changes)."""
-    global _supabase_client
+    """Reset both singleton instances (useful for testing and configuration changes)."""
+    global _supabase_client, _supabase_admin_client
     _supabase_client = None
+    _supabase_admin_client = None
 
 
 def check_supabase_connection() -> dict:

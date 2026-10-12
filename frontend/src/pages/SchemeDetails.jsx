@@ -8,6 +8,7 @@ import {
   saveScheme,
 } from '../services/api'
 import DeadlineBadge from '../components/DeadlineBadge'
+import DocumentRequirementBadge from '../components/DocumentRequirementBadge'
 import EligibilityBadge from '../components/EligibilityBadge'
 
 export default function SchemeDetails() {
@@ -118,7 +119,12 @@ export default function SchemeDetails() {
           <span className="badge badge-gov">
             {scheme.government_level === 'CENTRAL' ? 'Central Government' : 'State Government'}
           </span>
-          <EligibilityBadge status={scheme.status === 'ACTIVE' ? 'ELIGIBLE' : scheme.status} />
+          {scheme.eligibility_status && (
+            <EligibilityBadge
+              status={scheme.eligibility_status}
+              isVerificationRequired={scheme.is_verification_required}
+            />
+          )}
           <DeadlineBadge
             deadlineStatus={activity.deadline_status}
             daysRemaining={activity.days_remaining}
@@ -194,8 +200,10 @@ export default function SchemeDetails() {
               <ul className="docs-list">
                 {documents.map((doc, idx) => (
                   <li key={idx}>
-                    <strong>{doc.document_name}</strong>
-                    {doc.is_mandatory && <span className="badge badge-urgent text-xs ml-2">Mandatory</span>}
+                    <div className="doc-header-row">
+                      <strong>{doc.document_name}</strong>
+                      <DocumentRequirementBadge doc={doc} />
+                    </div>
                     {doc.description && <p className="doc-desc">{doc.description}</p>}
                   </li>
                 ))}
@@ -215,16 +223,18 @@ export default function SchemeDetails() {
             <h4>Application Timeline</h4>
             <div className="meta-row">
               <span className="meta-label">Activity Status:</span>
-              <span className="meta-value font-bold">{activity.status || scheme.status || 'Active'}</span>
+              <span className="meta-value font-bold">
+                {activity.status ? activity.status.replace(/_/g, ' ') : (scheme.status ? scheme.status.replace(/_/g, ' ') : 'Not Specified')}
+              </span>
             </div>
             <div className="meta-row">
               <span className="meta-label">Start Date:</span>
-              <span className="meta-value">{scheme.start_date || 'Open (Rolling Registration)'}</span>
+              <span className="meta-value">{scheme.start_date || (activity.status === 'OPEN' ? 'Open (Rolling Registration)' : 'Not Specified')}</span>
             </div>
             <div className="meta-row">
               <span className="meta-label">Deadline (Last Date):</span>
               <span className="meta-value">
-                {scheme.last_date || 'No closing deadline (Continuous Program)'}
+                {scheme.last_date || 'No closing deadline specified'}
               </span>
             </div>
             {activity.days_remaining !== null && activity.days_remaining !== undefined && (

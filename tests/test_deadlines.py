@@ -82,7 +82,7 @@ class TestActiveStatus(unittest.TestCase):
         self.assertEqual(info.deadline_status, DeadlineClassification.EXPIRED)
 
     def test_no_dates_status_active(self):
-        """Scheme with no dates, status='active' -> OPEN."""
+        """Scheme with no dates, status='active' (backwards-compatible default) -> OPEN."""
         scheme = {
             "status": "ACTIVE",
             "start_date": None,
@@ -93,6 +93,35 @@ class TestActiveStatus(unittest.TestCase):
         self.assertTrue(info.is_actionable)
         self.assertEqual(info.deadline_status, DeadlineClassification.NO_DEADLINE)
         self.assertIsNone(info.days_remaining)
+
+    def test_no_deadline_with_explicit_application_evidence(self):
+        """Scheme with NO_DEADLINE and explicit application instructions -> OPEN and actionable."""
+        scheme = {
+            "status": "ACTIVE",
+            "start_date": None,
+            "last_date": None,
+            "application_process": "[Offline Mode]\n**Step 1:** Submit form at district office",
+            "official_url": "https://tn.gov.in/scheme/123",
+        }
+        info = get_scheme_activity(scheme, current_datetime=self.ref_now)
+        self.assertEqual(info.status, ActivityStatus.OPEN)
+        self.assertTrue(info.is_actionable)
+        self.assertEqual(info.deadline_status, DeadlineClassification.NO_DEADLINE)
+
+    def test_no_deadline_without_explicit_application_evidence(self):
+        """Scheme with NO_DEADLINE and missing application evidence -> UNKNOWN and non-actionable."""
+        scheme = {
+            "status": "ACTIVE",
+            "start_date": None,
+            "last_date": None,
+            "application_process": None,
+            "official_url": None,
+        }
+        info = get_scheme_activity(scheme, current_datetime=self.ref_now)
+        self.assertEqual(info.status, ActivityStatus.UNKNOWN)
+        self.assertFalse(info.is_actionable)
+        self.assertEqual(info.deadline_status, DeadlineClassification.NO_DEADLINE)
+        self.assertIn("cannot be confirmed due to lack of application process", info.reason)
 
     def test_status_inactive(self):
         """Scheme with status='inactive' -> INACTIVE."""

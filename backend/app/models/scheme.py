@@ -49,6 +49,7 @@ class RawScheme(BaseModel):
     Unknown/unprovided values remain None.
     """
     external_id: Optional[str] = None
+    slug: Optional[str] = None
     scheme_name: str
     description: Optional[str] = None
     government_level: str = "CENTRAL"  # Expected 'CENTRAL' or 'STATE'
@@ -73,6 +74,7 @@ class NormalizedScheme(BaseModel):
     """
     id: Optional[str] = None  # Database UUID if existing
     external_id: Optional[str] = None
+    slug: Optional[str] = None
     scheme_name: str
     description: Optional[str] = None
     government_level: str  # Strictly 'CENTRAL' or 'STATE'

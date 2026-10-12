@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 
@@ -11,27 +11,42 @@ export default function Register() {
   const [successMsg, setSuccessMsg] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const { register } = useAuth()
+  const { register, isAuthenticated, loading: authLoading } = useAuth()
   const navigate = useNavigate()
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [isAuthenticated, authLoading, navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (loading) return
     setErrorMsg('')
     setSuccessMsg('')
 
+    const trimmedName = fullName.trim()
+    const trimmedEmail = email.trim()
+
     // Client-side validations
-    if (!fullName.trim()) {
+    if (!trimmedName) {
       setErrorMsg('Please enter your full name.')
       return
     }
-    if (!email.trim() || !email.includes('@')) {
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
       setErrorMsg('Please enter a valid email address.')
       return
     }
+
     if (password.length < 6) {
       setErrorMsg('Password must be at least 6 characters long.')
       return
     }
+
     if (password !== confirmPassword) {
       setErrorMsg('Passwords do not match.')
       return
@@ -39,20 +54,39 @@ export default function Register() {
 
     setLoading(true)
     try {
-      const data = await register(email, password, fullName.trim())
+      const data = await register(trimmedEmail, password, trimmedName)
       if (data?.session) {
         // Instant login
         navigate('/dashboard')
       } else {
         setSuccessMsg(
-          'Registration successful! Please check your email inbox to confirm your account, then log in.'
+          'Account created successfully! You can now log in with your credentials.'
         )
+        // Clear passwords for security
+        setPassword('')
+        setConfirmPassword('')
       }
     } catch (err) {
-      setErrorMsg(err.message || 'Failed to complete registration. Please try again.')
+      const message = err.message || ''
+      if (message.includes('User already registered')) {
+        setErrorMsg('An account with this email already exists. Please sign in instead.')
+      } else if (message.toLowerCase().includes('rate limit')) {
+        setErrorMsg('Too many registration attempts. Please wait a moment and try again.')
+      } else {
+        setErrorMsg(message || 'Failed to complete registration. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
+  }
+
+  if (authLoading) {
+    return (
+      <div className="page-loading">
+        <div className="spinner"></div>
+        <p>Verifying citizen session...</p>
+      </div>
+    )
   }
 
   return (
@@ -85,7 +119,9 @@ export default function Register() {
             <label htmlFor="fullName">Full Name</label>
             <input
               id="fullName"
+              name="fullName"
               type="text"
+              autoComplete="name"
               className="form-control"
               placeholder="e.g. Ramesh Kumar"
               value={fullName}
@@ -99,7 +135,9 @@ export default function Register() {
             <label htmlFor="email">Email Address</label>
             <input
               id="email"
+              name="email"
               type="email"
+              autoComplete="email"
               className="form-control"
               placeholder="name@example.com"
               value={email}
@@ -113,7 +151,9 @@ export default function Register() {
             <label htmlFor="password">Password (minimum 6 characters)</label>
             <input
               id="password"
+              name="password"
               type="password"
+              autoComplete="new-password"
               className="form-control"
               placeholder="••••••••"
               value={password}
@@ -127,7 +167,9 @@ export default function Register() {
             <label htmlFor="confirmPassword">Confirm Password</label>
             <input
               id="confirmPassword"
+              name="confirmPassword"
               type="password"
+              autoComplete="new-password"
               className="form-control"
               placeholder="••••••••"
               value={confirmPassword}
@@ -144,7 +186,17 @@ export default function Register() {
 
         <div className="auth-footer">
           <p>
-            Already have an account? <Link to="/login">Login here</Link>
+            Already have an account?{' '}
+            <Link
+              to="/login"
+              state={
+                email.trim()
+                  ? { registeredEmail: email.trim() }
+                  : undefined
+              }
+            >
+              Login here
+            </Link>
           </p>
         </div>
       </div>

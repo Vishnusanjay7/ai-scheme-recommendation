@@ -378,7 +378,132 @@ class OpenAIService:
             extracted_disability = True
             keywords.append("disability")
 
-        # 6. Domain keywords
+        extracted_district = None
+        extracted_income = None
+        extracted_edu = None
+        extracted_category = None
+
+        # 6. District extraction (Tamil Nadu)
+        tn_districts = {
+            "chennai": "Chennai",
+            "coimbatore": "Coimbatore",
+            "madurai": "Madurai",
+            "salem": "Salem",
+            "tiruchirappalli": "Tiruchirappalli",
+            "trichy": "Tiruchirappalli",
+            "thanjavur": "Thanjavur",
+            "vellore": "Vellore",
+            "tirunelveli": "Tirunelveli",
+            "dindigul": "Dindigul",
+            "erode": "Erode",
+            "tiruppur": "Tiruppur",
+            "kancheepuram": "Kancheepuram",
+            "cuddalore": "Cuddalore",
+            "dharmapuri": "Dharmapuri",
+            "krishnagiri": "Krishnagiri",
+            "namakkal": "Namakkal",
+            "nilgiris": "The Nilgiris",
+            "karur": "Karur",
+            "perambalur": "Perambalur",
+            "pudukkottai": "Pudukkottai",
+            "ramanathapuram": "Ramanathapuram",
+            "sivaganga": "Sivaganga",
+            "theni": "Theni",
+            "thoothukudi": "Thoothukudi",
+            "tiruvallur": "Tiruvallur",
+            "tiruvannamalai": "Tiruvannamalai",
+            "tiruvarur": "Tiruvarur",
+            "viluppuram": "Viluppuram",
+            "virudhunagar": "Virudhunagar",
+            "ariyalur": "Ariyalur",
+            "tenkasi": "Tenkasi",
+            "tirupathur": "Tirupathur",
+            "ranipet": "Ranipet",
+            "chengalpattu": "Chengalpattu",
+            "kallakurichi": "Kallakurichi",
+            "mayiladuthurai": "Mayiladuthurai",
+            "சென்னை": "Chennai",
+            "கோவை": "Coimbatore",
+            "மதுரை": "Madurai",
+            "சேலம்": "Salem",
+            "திருச்சி": "Tiruchirappalli",
+            "தஞ்சாவூர்": "Thanjavur",
+        }
+        for d_key, d_val in tn_districts.items():
+            if re.search(r"\b" + re.escape(d_key) + r"\b", text) or d_key in message:
+                extracted_district = d_val
+                keywords.append(d_val.lower())
+                break
+
+        # 7. Income extraction
+        inc_match = re.search(r"(?:income|salary|earnings?|வருமானம்)\s*(?:is|:|\s)?\s*(?:rs\.?|inr|₹)?\s*(\d+(?:[.,]\d+)?)\s*(lakhs?|lacs?|l|crores?|k)?", text)
+        if not inc_match:
+            inc_match = re.search(r"(?:under|below|less than|கீழ்)\s*(?:rs\.?|inr|₹)?\s*(\d+(?:[.,]\d+)?)\s*(lakhs?|lacs?|l|crores?|k)?\s*(?:income|annual income|வருமானம்)?", text)
+        if inc_match:
+            try:
+                num = float(inc_match.group(1).replace(",", ""))
+                unit = (inc_match.group(2) or "").lower()
+                if "lakh" in unit or "lac" in unit or unit == "l" or "லட்சம்" in text:
+                    extracted_income = num * 100000.0
+                elif "crore" in unit:
+                    extracted_income = num * 10000000.0
+                elif unit == "k":
+                    extracted_income = num * 1000.0
+                elif num < 100:
+                    extracted_income = num * 100000.0
+                else:
+                    extracted_income = num
+            except ValueError:
+                pass
+
+        # 8. Education extraction
+        if re.search(r"\b(10th|sslc|tenth|10 ஆம் வகுப்பு)\b", text):
+            extracted_edu = "10th"
+            keywords.append("10th")
+        elif re.search(r"\b(12th|hsc|higher secondary|plus two|\+2|12 ஆம் வகுப்பு)\b", text):
+            extracted_edu = "Higher Secondary (12th)"
+            keywords.append("higher secondary")
+        elif re.search(r"\b(diploma|polytechnic)\b", text):
+            extracted_edu = "Diploma"
+            keywords.append("diploma")
+        elif re.search(r"\b(graduate|bachelor|degree|b\.?e|b\.?tech|b\.?sc|b\.?com|b\.?a|பட்டதாரி)\b", text):
+            extracted_edu = "Graduate / Bachelor's"
+            keywords.append("graduate")
+        elif re.search(r"\b(post graduate|master|m\.?tech|m\.?sc|m\.?com|m\.?a|phd)\b", text):
+            extracted_edu = "Post Graduate / Master's"
+            keywords.append("post graduate")
+
+        # 9. Social category extraction
+        if re.search(r"\b(sc|scheduled caste|ஆதிதிராவிடர்)\b", text):
+            extracted_category = "SC"
+            keywords.append("sc")
+        elif re.search(r"\b(st|scheduled tribe|பழங்குடியினர்)\b", text):
+            extracted_category = "ST"
+            keywords.append("st")
+        elif re.search(r"\b(mbc|most backward|மிகவும் பிற்படுத்தப்பட்டோர்)\b", text):
+            extracted_category = "MBC"
+            keywords.append("mbc")
+        elif re.search(r"\b(obc|bc|backward class|பிற்படுத்தப்பட்டோர்)\b", text):
+            extracted_category = "OBC"
+            keywords.append("obc")
+        elif re.search(r"\b(general|oc|முன்னேறிய வகுப்பு)\b", text):
+            extracted_category = "General"
+
+        # 10. Specific welfare scheme recognition
+        if re.search(r"\b(pudhumai\s*penn|புதுமைப் பெண்)\b", text):
+            keywords.extend(["pudhumai penn", "higher education"])
+        if re.search(r"\b(moovalur|ramamirtham|மூவலூர்)\b", text):
+            keywords.extend(["moovalur", "marriage assistance"])
+        if re.search(r"\b(uyegp|unemployed youth)\b", text):
+            keywords.extend(["uyegp", "employment generation"])
+        if re.search(r"\b(amma two wheeler|two wheeler|இருசக்கர வாகனம்)\b", text):
+            keywords.extend(["two wheeler", "working women"])
+        if re.search(r"\b(girl child|girl child protection)\b", text):
+            keywords.extend(["girl child", "protection"])
+        if re.search(r"\b(hostel|working women hostel|விடுதி)\b", text):
+            keywords.extend(["hostel", "working women"])
+
+        # 11. Domain keywords
         if "housing" in text or "வீடு" in text:
             keywords.append("housing")
         if "loan" in text or "credit" in text or "நிதி" in text:
@@ -386,14 +511,29 @@ class OpenAIService:
         if "health" in text or "medical" in text or "மருத்துவம்" in text:
             keywords.append("health")
 
+        # 12. SPR Intent classification
+        intent_type = "find_schemes"
+        if re.search(r"\b(document|documents|certificate|proof|சான்றிதழ்|ஆவணங்கள்)\b", text):
+            intent_type = "document_inquiry"
+        elif re.search(r"\b(how to apply|application process|where to apply|portal|website|எப்படி விண்ணப்பிப்பது)\b", text):
+            intent_type = "procedure_inquiry"
+        elif re.search(r"\b(benefit|benefits|amount|subsidy|grant|loan|நிதி உதவி|மானியம்)\b", text):
+            intent_type = "benefit_inquiry"
+        elif re.search(r"\b(deadline|last date|closing date|கடைசி தேதி)\b", text):
+            intent_type = "deadline_inquiry"
+
         return ChatIntent(
-            intent="find_schemes",
+            intent=intent_type,
             query=message,
             language=language,
             age=extracted_age,
             gender=extracted_gender,
             state_name=extracted_state,
+            district_name=extracted_district,
+            annual_income=extracted_income,
             occupation=extracted_occ,
+            education=extracted_edu,
+            category=extracted_category,
             disability_status=extracted_disability,
             keywords=keywords,
         )
@@ -409,7 +549,7 @@ class OpenAIService:
     ) -> str:
         """
         Synthesizes a helpful natural-language conversational response for the citizen.
-        Grounded strictly in the returned factual recommendations.
+        Grounded strictly in the returned factual recommendations using NLP Sparse Primed Representation.
         """
         verification_required = verification_required or []
         name_str = f" {user_name}" if user_name else ""
@@ -429,27 +569,107 @@ class OpenAIService:
                 "Please check back soon."
             )
 
-        if not self.is_available():
-            # Deterministic template response
-            count = len(recommendations)
+        def _format_deterministic_response() -> str:
+            rec_count = len(recommendations)
+            verif_count = len(verification_required)
+
             if is_tamil:
-                msg = f"வணக்கம்{name_str}! உங்கள் தகவல்களின் அடிப்படையில் {count} தகுதியான அரசு திட்டங்களை கண்டறிந்துள்ளேன்.\n\n"
-                for idx, r in enumerate(recommendations[:3], 1):
-                    s_name = getattr(r, "scheme_name", "") or r.get("scheme_name", "")
-                    s_score = getattr(r, "relevance_score", 0) or r.get("relevance_score", 0)
-                    msg += f"{idx}. {s_name} (பொருத்தம்: {s_score}/100)\n"
-                msg += "\nவிவரங்களை பார்க்க மற்றும் அதிகாரப்பூர்வமாக விண்ணப்பிக்க கீழே உள்ள அட்டைகளை பயன்படுத்தவும்."
+                if rec_count > 0:
+                    msg = (
+                        f"வணக்கம்{name_str}! தமிழ்நாடு அரசு மற்றும் மத்திய அரசின் அதிகாரப்பூர்வ விதிமுறைகளின்படி, "
+                        f"உங்கள் சுயவிவரத்திற்குப் பொருந்தும் **{rec_count} தகுதியான நலத்திட்டங்களை** கண்டறிந்துள்ளேன்.\n\n"
+                        "### 🏛️ முக்கிய தகுதியான திட்டங்கள்:\n\n"
+                    )
+                    for idx, r in enumerate(recommendations[:3], 1):
+                        s_name = getattr(r, "scheme_name", "") or r.get("scheme_name", "")
+                        s_score = getattr(r, "relevance_score", 0) or r.get("relevance_score", 0)
+                        s_benefit = getattr(r, "benefits", "") or r.get("benefits", "")
+                        s_benefit_short = s_benefit[:120] + ("..." if len(s_benefit) > 120 else "") if s_benefit else "அரசு உதவி மற்றும் நலத்திட்ட பலன்கள் வழங்கப்படுகின்றன."
+
+                        msg += f"**{idx}. {s_name}**\n"
+                        msg += f"- **பொருத்தம்:** {s_score}/100\n"
+                        msg += f"- **திட்ட பயன்கள்:** {s_benefit_short}\n\n"
+
+                    if verif_count > 0:
+                        msg += f"💡 *கூடுதலாக, ஆவணச் சரிபார்ப்பிற்கு உட்பட்ட மேலும் {verif_count} திட்டங்கள் உள்ளன.*\n\n"
+                else:
+                    msg = (
+                        f"வணக்கம்{name_str}! தமிழ்நாடு அரசு மற்றும் மத்திய அரசின் அதிகாரப்பூர்வ விதிமுறைகளின்படி, "
+                        f"உங்கள் தகவல்களின் அடிப்படையில் நீங்கள் பயன்பெறக்கூடிய **{verif_count} சாத்தியமான நலத்திட்டங்கள்** கண்டறியப்பட்டுள்ளன "
+                        "(இவற்றிற்கு சான்றிதழ் அல்லது தகுதிச் சான்றுகள் சரிபார்க்கப்பட வேண்டும்):\n\n"
+                        "### 🏛️ சாத்தியமான நலத்திட்டங்கள்:\n\n"
+                    )
+                    for idx, r in enumerate(verification_required[:3], 1):
+                        s_name = getattr(r, "scheme_name", "") or r.get("scheme_name", "")
+                        s_score = getattr(r, "relevance_score", 0) or r.get("relevance_score", 0)
+                        s_benefit = getattr(r, "benefits", "") or r.get("benefits", "")
+                        s_benefit_short = s_benefit[:120] + ("..." if len(s_benefit) > 120 else "") if s_benefit else "அரசு உதவி மற்றும் நலத்திட்ட பலன்கள் வழங்கப்படுகின்றன."
+
+                        msg += f"**{idx}. {s_name}**\n"
+                        msg += f"- **பொருத்தம்:** {s_score}/100\n"
+                        msg += f"- **திட்ட பயன்கள்:** {s_benefit_short}\n"
+                        missing = getattr(r, "missing_criteria", []) or []
+                        if missing:
+                            msg += "- **சரிபார்க்க வேண்டியவை:** வருமானம், சாதிச் சான்றிதழ் அல்லது கல்வி ஆவணங்கள்.\n"
+                        msg += "\n"
+
+                msg += (
+                    "📋 **அடுத்த கட்ட நடவடிக்கைகள்:**\n"
+                    "- விண்ணப்பிக்க தேவையான ஆவணங்கள்: ஆதார் அட்டை, வருமானச் சான்றிதழ், சாதிச் சான்றிதழ் மற்றும் வங்கிக் கணக்கு புத்தகம்.\n"
+                    "- கீழே உள்ள அட்டைகளில் **'View Details'** அல்லது **'Apply Officially'** கிளிக் செய்து அதிகாரப்பூர்வ அரசு போர்ட்டலில் விண்ணப்பிக்கலாம்."
+                )
                 return msg
             else:
-                msg = f"Hello{name_str}! Based on deterministic statutory rules, I found {count} eligible welfare scheme(s) matching your profile:\n\n"
-                for idx, r in enumerate(recommendations[:3], 1):
-                    s_name = getattr(r, "scheme_name", "") or r.get("scheme_name", "")
-                    s_score = getattr(r, "relevance_score", 0) or r.get("relevance_score", 0)
-                    msg += f"{idx}. {s_name} (Match Score: {s_score}/100)\n"
-                msg += "\nPlease review the scheme cards below for complete benefits and official application links."
+                if rec_count > 0:
+                    msg = (
+                        f"Hello{name_str}! Based on deterministic statutory eligibility verification, "
+                        f"I found **{rec_count} verified welfare program(s)** matching your profile:\n\n"
+                        "### 🏛️ Recommended Welfare Schemes:\n\n"
+                    )
+                    for idx, r in enumerate(recommendations[:3], 1):
+                        s_name = getattr(r, "scheme_name", "") or r.get("scheme_name", "")
+                        s_score = getattr(r, "relevance_score", 0) or r.get("relevance_score", 0)
+                        s_benefit = getattr(r, "benefits", "") or r.get("benefits", "")
+                        s_benefit_short = s_benefit[:140] + ("..." if len(s_benefit) > 140 else "") if s_benefit else "Financial assistance and welfare benefits per government guidelines."
+
+                        msg += f"**{idx}. {s_name}**\n"
+                        msg += f"- **Match Score:** {s_score}/100\n"
+                        msg += f"- **Key Benefits:** {s_benefit_short}\n\n"
+
+                    if verif_count > 0:
+                        msg += f"💡 *Additionally, there are {verif_count} potential scheme(s) requiring document verification listed below.*\n\n"
+                else:
+                    msg = (
+                        f"Hello{name_str}! Based on deterministic statutory evaluation, "
+                        f"I found **{verif_count} potential welfare program(s)** matching your criteria. "
+                        "These programs require standard documentary confirmation (e.g., student enrollment or income certificate) to finalize qualification:\n\n"
+                        "### 🏛️ Potential Welfare Schemes:\n\n"
+                    )
+                    for idx, r in enumerate(verification_required[:3], 1):
+                        s_name = getattr(r, "scheme_name", "") or r.get("scheme_name", "")
+                        s_score = getattr(r, "relevance_score", 0) or r.get("relevance_score", 0)
+                        s_benefit = getattr(r, "benefits", "") or r.get("benefits", "")
+                        s_benefit_short = s_benefit[:140] + ("..." if len(s_benefit) > 140 else "") if s_benefit else "Financial assistance and welfare benefits per government guidelines."
+
+                        msg += f"**{idx}. {s_name}**\n"
+                        msg += f"- **Match Score:** {s_score}/100\n"
+                        msg += f"- **Key Benefits:** {s_benefit_short}\n"
+                        missing = getattr(r, "missing_criteria", []) or []
+                        if missing:
+                            msg += "- **Verification Needed:** Supporting documentation (enrollment certificate, community/income proof).\n"
+                        msg += "\n"
+
+                msg += (
+                    "📋 **Application Guidelines:**\n"
+                    "- Ensure you have standard supporting documents ready (Aadhaar Card, Income Certificate, Community Certificate, and Bank Passbook).\n"
+                    "- Click **'View Details'** or **'Apply Officially'** below to access the verified government portal (.gov.in / .nic.in). SchemeSetu never charges any fees for welfare access."
+                )
                 return msg
 
-        # LLM conversational grounding with factual constraints
+        if not self.is_available():
+            return _format_deterministic_response()
+
+        # LLM conversational grounding with factual constraints using Sparse Primed Representation
         compact_schemes = []
         for r in recommendations[:4]:
             compact_schemes.append({
@@ -459,20 +679,32 @@ class OpenAIService:
                 "reason": getattr(r, "relevance_reason", "") or r.get("relevance_reason", ""),
             })
 
+        compact_potential = []
+        for r in verification_required[:4]:
+            compact_potential.append({
+                "name": getattr(r, "scheme_name", "") or r.get("scheme_name", ""),
+                "benefits": getattr(r, "benefits", "") or r.get("benefits", ""),
+                "relevance_score": getattr(r, "relevance_score", 0) or r.get("relevance_score", 0),
+                "missing_criteria": getattr(r, "missing_criteria", []) or [],
+            })
+
         system_prompt = (
-            "You are SchemeSetu's AI Government Scheme Assistant.\n"
-            "Explain the returned recommendations politely and clearly to the citizen.\n\n"
-            "STRICT FACTUAL SAFETY RULES:\n"
-            "1. ONLY reference schemes provided in the Recommended Schemes context. NEVER invent external schemes.\n"
-            "2. DO NOT invent benefits, deadlines, or URLs.\n"
-            "3. Refer to scores as 'Match Score: X/100' or 'Relevance Score: X/100'. NEVER say 'X% eligible'.\n"
-            f"4. Language requirement: Respond in {'TAMIL (தமிழ்)' if is_tamil else 'ENGLISH'}.\n"
-            "5. Keep the response concise, encouraging, and easy to understand."
+            "You are SchemeSetu's AI Government Welfare Scheme Assistant — an authoritative, "
+            "dignified, and empathetic civic advisor for Indian citizens.\n\n"
+            "[SPR COGNITIVE PRIMES]\n"
+            "- [PRIME: DETERMINISTIC_STATUTORY_AUTHORITY]: The server-side rule engine has already verified legal qualification. "
+            "Explain criteria factually. Never overrule statutory decisions.\n"
+            "- [PRIME: ZERO_HALLUCINATION_GROUNDING]: Strictly cite only programs in the Recommended or Potential Schemes context. Never invent programs, funding amounts, or deadlines.\n"
+            "- [PRIME: CIVIC_PROFESSIONALISM]: Use respectful, clear, structured Markdown. Use bullet points for readability. Explain benefits, application steps, and required documents.\n"
+            "- [PRIME: ANTI_PHISHING_GOV_ONLY]: Instruct the citizen to apply exclusively through official government domains (*.gov.in / *.nic.in).\n"
+            f"- [PRIME: LINGUISTIC_PURITY]: Output strictly in {'TAMIL (தமிழ்) using dignified administrative Tamil terms' if is_tamil else 'professional, accessible ENGLISH'}.\n"
+            "- [PRIME: METRIC_INTEGRITY]: Use 'Match Score: X/100'. Never describe relevance as legal eligibility percentage."
         )
 
         user_prompt = (
             f"Citizen Query: {user_message}\n\n"
             f"Recommended Eligible Schemes:\n{json.dumps(compact_schemes, indent=2)}\n\n"
+            f"Potential Schemes (Requiring Document Verification):\n{json.dumps(compact_potential, indent=2)}\n\n"
             "Please write a helpful conversational summary response for the citizen."
         )
 
@@ -484,7 +716,7 @@ class OpenAIService:
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.3,
-                max_tokens=500,
+                max_tokens=600,
             )
             ans = response.choices[0].message.content
             if ans and ans.strip():
@@ -493,8 +725,5 @@ class OpenAIService:
             logger.warning("OpenAI response synthesis failed: %s", exc)
 
         # Fallback template if completion fails
-        count = len(recommendations)
-        if is_tamil:
-            return f"உங்கள் தகவல்களின் அடிப்படையில் {count} தகுதியான அரசு திட்டங்களை கண்டறிந்துள்ளேன். கீழே உள்ள அட்டைகளில் முழு விவரங்களையும் பார்க்கலாம்."
-        return f"Based on statutory eligibility rules, I found {count} eligible scheme(s) for you. Please check the details and official application links below."
+        return _format_deterministic_response()
 

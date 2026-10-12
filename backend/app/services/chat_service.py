@@ -85,13 +85,44 @@ class ChatService:
         if db_profile is None:
             # Guest evaluation: construct purely in-memory profile
             resolved_state_id = intent.state_id or self._resolve_state_id(intent.state_name)
+            resolved_district_id = intent.district_id
+            resolved_state_name = intent.state_name
+            resolved_district_name = intent.district_name
+
+            # If district is provided but state is not resolved, lookup district's state
+            if not resolved_state_id and intent.district_name:
+                try:
+                    client = self.get_client()
+                    d_res = (
+                        client.table("districts")
+                        .select("id, name, state_id")
+                        .ilike("name", intent.district_name.strip())
+                        .limit(1)
+                        .execute()
+                    )
+                    if d_res.data:
+                        row = d_res.data[0]
+                        resolved_district_id = int(row["id"])
+                        resolved_district_name = row["name"]
+                        resolved_state_id = int(row["state_id"])
+                        s_res = client.table("states").select("name").eq("id", resolved_state_id).limit(1).execute()
+                        if s_res.data:
+                            resolved_state_name = s_res.data[0]["name"]
+                except Exception:
+                    pass
+
+            # Default to state_id 23 (Tamil Nadu) if state remains unspecified for guest exploration
+            if not resolved_state_id and not intent.state_name:
+                resolved_state_id = 23
+                resolved_state_name = "Tamil Nadu"
+
             return UserProfileInput(
                 age=intent.age,
                 gender=intent.gender,
                 state_id=resolved_state_id,
-                state_name=intent.state_name,
-                district_id=intent.district_id,
-                district_name=intent.district_name,
+                state_name=resolved_state_name,
+                district_id=resolved_district_id,
+                district_name=resolved_district_name,
                 annual_income=intent.annual_income,
                 occupation=intent.occupation,
                 education=intent.education,
@@ -103,6 +134,28 @@ class ChatService:
         # Query context provides temporary overrides only for missing fields
         state_id = db_profile.state_id
         state_name = db_profile.state_name
+        district_id = db_profile.district_id
+        district_name = db_profile.district_name
+
+        if intent.district_name and not district_name:
+            district_name = intent.district_name
+            if not state_id:
+                try:
+                    client = self.get_client()
+                    d_res = (
+                        client.table("districts")
+                        .select("id, name, state_id")
+                        .ilike("name", intent.district_name.strip())
+                        .limit(1)
+                        .execute()
+                    )
+                    if d_res.data:
+                        district_id = int(d_res.data[0]["id"])
+                        district_name = d_res.data[0]["name"]
+                        state_id = int(d_res.data[0]["state_id"])
+                except Exception:
+                    pass
+
         if intent.state_name:
             # Query explicitly targets another state
             resolved = self._resolve_state_id(intent.state_name)
@@ -116,8 +169,8 @@ class ChatService:
             gender=db_profile.gender or intent.gender,
             state_id=state_id,
             state_name=state_name,
-            district_id=db_profile.district_id if db_profile.district_id is not None else intent.district_id,
-            district_name=db_profile.district_name or intent.district_name,
+            district_id=district_id if district_id is not None else intent.district_id,
+            district_name=district_name or intent.district_name,
             annual_income=db_profile.annual_income if db_profile.annual_income is not None else intent.annual_income,
             occupation=db_profile.occupation or intent.occupation,
             education=db_profile.education or intent.education,

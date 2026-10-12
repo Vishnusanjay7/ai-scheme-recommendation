@@ -16,6 +16,8 @@ backend_dir = Path(__file__).resolve().parent.parent.parent
 if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
+sys.stdout.reconfigure(encoding="utf-8")
+
 from app.integrations.supabase_client import get_supabase_client, is_supabase_configured
 
 TABLES_PUBLIC = [

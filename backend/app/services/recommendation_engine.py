@@ -220,9 +220,7 @@ class RecommendationService:
         resolved_profile: UserProfileInput
         if user_id:
             db_profile = self.eligibility_service.get_user_profile_from_db(user_id)
-            if not db_profile:
-                raise ValueError(f"Citizen profile for user ID '{user_id}' was not found in database.")
-            resolved_profile = db_profile
+            resolved_profile = db_profile if db_profile else UserProfileInput()
         else:
             resolved_profile = profile or UserProfileInput()
 

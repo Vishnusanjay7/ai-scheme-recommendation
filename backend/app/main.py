@@ -11,6 +11,7 @@ from app.routes.profile_routes import router as profile_router
 from app.routes.saved_scheme_routes import router as saved_schemes_router
 from app.routes.notification_routes import router as notification_router
 from app.routes.chat_routes import router as chat_router
+from app.routes.auth_routes import router as auth_router
 
 app = FastAPI(
     title="AI Government Scheme Recommendation API",
@@ -35,6 +36,7 @@ app.include_router(profile_router)
 app.include_router(saved_schemes_router)
 app.include_router(notification_router)
 app.include_router(chat_router)
+app.include_router(auth_router)
 
 
 @app.get("/health")

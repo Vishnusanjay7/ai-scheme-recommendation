@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* ==============================================================================
    SchemeSetu - AI Government Scheme Portal Stylesheet
    Clean, accessible, professional public-service theme
@@ -522,6 +526,17 @@ a:hover {
   font-size: 14px;
   color: var(--text-muted);
 }
+
+.btn-warning {
+  background-color: #f59e0b;
+  color: #ffffff;
+  border: none;
+}
+.btn-warning:hover:not(:disabled) {
+  background-color: #d97706;
+}
+
+
 
 /* ==============================================================================
    Dashboard Page

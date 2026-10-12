@@ -17,6 +17,7 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
+backend/data/
 
 # Frontend dependencies & builds
 frontend/node_modules/
