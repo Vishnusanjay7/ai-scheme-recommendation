@@ -1,0 +1,8 @@
+{
+  "name": "SchemeSetu - AI Government Scheme Recommender",
+  "description": "AI-Powered Government Scheme Recommendation System providing personalized, multi-factor ranked welfare scheme recommendations.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
